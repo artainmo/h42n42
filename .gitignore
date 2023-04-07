@@ -1,4 +1,13 @@
-**/local
-**/_server
-**/_client
-**/_deps
+local
+_server
+_client
+_deps
+.depend
+*.cm[ioax]
+*.cmxa
+*.cmxs
+*.o
+*.a
+*.annot
+*.type_mli
+h42n42.js
