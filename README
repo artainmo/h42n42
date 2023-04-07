@@ -1,3 +1,19 @@
+# h42n42
+42 school [subject](https://cdn.intra.42.fr/pdf/pdf/81368/en.subject.pdf).
+
+Consists of one web page containing a game. Has been written in OCaml using the Eliom library from the Ocsigen project.
+
+The game consists of beings wandering around between a river and hospital.<br>
+If a being comes in contact with the river it becomes infected by the contagious h42n42 virus.<br>
+The player should grab and move those beings away from the river. If a being gets infected it should be moved to the hospital.<br>
+The game stops once all beings are infected.
+
+## Use
+Run with `make test.byte` or `make test.opt` to compile it in byte-code or machine-code respectively.
+
+Clean compilation files with `make clean` and also output files with `make distclean`.
+
+# Eliom generated README
 
 Instructions
 ============
