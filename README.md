@@ -15,7 +15,8 @@ Clean compilation files with `make clean` and also output files with `make distc
 
 ## Resources
 [OCaml - artainmo](https://github.com/artainmo/general-programming/tree/main/languages/OCaml)<br>
-[Ocsigen: step by step tutorial for client-server Web application (2/2)](https://ocsigen.org/blog/2016/03/30/tuto-graffiti2/)
+[Ocsigen: step by step tutorial for client-server Web application (2/2)](https://ocsigen.org/blog/2016/03/30/tuto-graffiti2/)<br>
+[Writing a client/server Eliom application](https://ocsigen.org/tuto/latest/manual/application)
 
 # Eliom generated README
 
