@@ -35,6 +35,7 @@ let page () =
     (body [h1 [txt "h42n42"];
           canvas_display]))
 
+(* Create the canvas and draw the static map (river, land, hospital) *)
 let%client init_client () =
   let canvas = Eliom_content.Html.To_dom.of_canvas ~%canvas_display in
   let ctx = canvas##(getContext (Dom_html._2d_)) in
