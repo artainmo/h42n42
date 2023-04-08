@@ -3,6 +3,7 @@ open Eliom_lib
 open Eliom_content
 open Html.D
 open Js_of_ocaml
+open Lwt
 ]
 
 module H42n42_app =
@@ -25,29 +26,39 @@ let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
   ctx##(lineTo (float x2) (float y2));
   ctx##stroke
 
+(* Draw the static map (river, land, hospital) *)
+let%client init_map ctx =
+  draw ctx ((0, 154, 23), 8, (0, 0), (0, height));
+  draw ctx ((0, 154, 23), 8, (width, 0), (width, height));
+  draw ctx ((0, 154, 23), 8, (0, height), (width, height));
+  draw ctx ((134, 180, 188), 8, (0, 0), (width, 0));
+  draw ctx ((134, 180, 188), 4, (0, height/10), (width, height/10));
+  draw ctx ((134, 180, 188), 8, (0, 0), (0, height/10));
+  draw ctx ((134, 180, 188), 8, (width, 0), (width, height/10));
+  draw ctx ((232, 0, 0), 4, (0, height - height/10), (width, height - height/10));
+  draw ctx ((232, 0, 0), 8, (0, height - height/10), (0, height));
+  draw ctx ((232, 0, 0), 8, (width, height - height/10), (width, height));
+  draw ctx ((232, 0, 0), 8, (0, height), (width, height))
+
+let%client update_frontend ctx =
+  draw ctx ((0, 154, 23), 8, (300, 200), (400, 300))
+
 let canvas_display =
   canvas ~a:[a_width width; a_height height]
     [txt "your browser doesn't support canvas"]
+
+let%client init_client () =
+  let canvas = Eliom_content.Html.To_dom.of_canvas ~%canvas_display in
+  let ctx = canvas##(getContext (Dom_html._2d_)) in
+  ctx##.lineCap := Js.string "rectangular";
+  init_map ctx;
+  ignore (update_frontend ctx)
 
 let page () =
   (html
     (head (title (txt "h42n42")) [])
     (body [h1 [txt "h42n42"];
           canvas_display]))
-
-(* Create the canvas and draw the static map (river, land, hospital) *)
-let%client init_client () =
-  let canvas = Eliom_content.Html.To_dom.of_canvas ~%canvas_display in
-  let ctx = canvas##(getContext (Dom_html._2d_)) in
-  ctx##.lineCap := Js.string "rectangular";
-  draw ctx ((0, 154, 23), 8, (0, 0), (0, height));
-  draw ctx ((0, 154, 23), 8, (width, 0), (width, height));
-  draw ctx ((0, 154, 23), 8, (0, height), (width, height));
-  draw ctx ((134, 180, 188), height/6, (0, 0), (width, 0));
-  draw ctx ((232, 0, 0), 4, (0, height - height/10), (width, height - height/10));
-  draw ctx ((232, 0, 0), 8, (0, height - height/10), (0, height));
-  draw ctx ((232, 0, 0), 8, (width, height - height/10), (width, height));
-  draw ctx ((232, 0, 0), 8, (0, height), (width, height))
 
 let main_service =
   Eliom_service.create
