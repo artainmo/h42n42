@@ -13,6 +13,10 @@ Run with `make test.byte` or `make test.opt` to compile it in byte-code or machi
 
 Clean compilation files with `make clean` and also output files with `make distclean`.
 
+## Resources
+[OCaml - artainmo](https://github.com/artainmo/general-programming/tree/main/languages/OCaml)<br>
+[Ocsigen: step by step tutorial for client-server Web application (2/2)](https://ocsigen.org/blog/2016/03/30/tuto-graffiti2/)
+
 # Eliom generated README
 
 ## Instructions
