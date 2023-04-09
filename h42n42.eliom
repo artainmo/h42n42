@@ -16,14 +16,7 @@ module H42n42_app =
 let%shared width = 1050
 let%shared height = 800
 let%shared refresh_rate = 0.01
-let%shared direction_length = 400
-
-type creet_type = {
-	mutable color : int * int * int;
-	mutable position_x : int;
-  mutable position_y : int;
-	mutable radius : int;
-}
+let%shared direction_length = 250
 
 (* Draws a line between two given points in a canvas *)
 let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
