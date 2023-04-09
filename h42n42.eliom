@@ -54,15 +54,26 @@ let%client init_map ctx =
   draw ctx ((232, 0, 0), 8, (width, height - height/10), (width, height));
   draw ctx ((232, 0, 0), 8, (0, height), (width, height))
 
-let%client rec creet ctx ((r, g, b), (x, y), radius) =
+let%client creet_move direction x y radius =
+  match direction with
+  | 0 -> if x - radius = 0 then (x + 1, y) else (x - 1, y)
+  | 1 -> if x + radius = width then (x - 1, y) else (x + 1, y)
+  | 2 -> if y + radius = height then (x, y - 1) else (x, y + 1)
+  | 3 -> if y - radius = 0 then (x, y + 1) else (x, y - 1)
+  | _ -> failwith "Invalid value in creet_move_y"
+
+let%client rec creet ctx ((r, g, b), (x, y), radius) steps direction =
   ctx##clearRect 0. 0. (float_of_int width) (float_of_int height);
   init_map ctx;
   draw_creet ctx ((r,g,b), (x, y), radius);
-  Js_of_ocaml_lwt__.Lwt_js.sleep 0.03 >>= fun () -> creet ctx ((r,g,b), (x+1, y+1), radius)
+  Js_of_ocaml_lwt__.Lwt_js.sleep 0.01 >>= fun () -> creet ctx
+        ((r,g,b), (creet_move direction x y radius), radius)
+        (if steps = 0 then 100 else steps - 1)
+        (if steps = 0 then (Random.self_init (); Random.int 4) else direction)
 
 let%client rec update_frontend ctx =
-  ignore (creet ctx ((138,43,226), (width/2, height/2), height/30));
-  Js_of_ocaml_lwt__.Lwt_js.sleep 10. >>= fun () -> update_frontend ctx
+  ignore (creet ctx ((138,43,226), (width/2, height/2), height/30) 100 (Random.self_init (); Random.int 4))
+  (* Js_of_ocaml_lwt__.Lwt_js.sleep 10. >>= fun () -> update_frontend ctx *)
   (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
 
 let canvas_display =
