@@ -40,8 +40,9 @@ let%client init_map ctx =
   draw ctx ((232, 0, 0), 8, (width, height - height/10), (width, height));
   draw ctx ((232, 0, 0), 8, (0, height), (width, height))
 
-let%client update_frontend ctx =
-  draw ctx ((0, 154, 23), 8, (300, 200), (400, 300))
+let%client rec update_frontend ctx =
+  draw ctx ((0, 154, 23), 8, (300, 200), (400, 300));
+  Js_of_ocaml_lwt__.Lwt_js.sleep 10. >>= fun () -> update_frontend ctx; Lwt.return_unit (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
 
 let canvas_display =
   canvas ~a:[a_width width; a_height height]
