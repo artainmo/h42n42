@@ -16,6 +16,13 @@ module H42n42_app =
 let%shared width = 1050
 let%shared height = 800
 
+type creet_type = {
+	mutable color : int * int * int;
+	mutable position_x : int;
+  mutable position_y : int;
+	mutable radius : int;
+}
+
 (* Draws a line between two given points in a canvas *)
 let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
   let color = CSS.Color.string_of_t (CSS.Color.rgb r g b) in
@@ -25,6 +32,13 @@ let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
   ctx##(moveTo (float x1) (float y1));
   ctx##(lineTo (float x2) (float y2));
   ctx##stroke
+
+let%client draw_creet ctx ((r, g, b), (x, y), radius) =
+  draw ctx ((r, g, b), 3, (x - radius, y + radius), (x + radius, y + radius));
+  draw ctx ((r, g, b), 3, (x - radius, y - radius), (x + radius, y - radius));
+  draw ctx ((r, g, b), 3, (x - radius, y + radius), (x - radius, y - radius));
+  draw ctx ((r, g, b), 3, (x + radius, y + radius), (x + radius, y - radius))
+
 
 (* Draw the static map (river, land, hospital) *)
 let%client init_map ctx =
@@ -40,9 +54,16 @@ let%client init_map ctx =
   draw ctx ((232, 0, 0), 8, (width, height - height/10), (width, height));
   draw ctx ((232, 0, 0), 8, (0, height), (width, height))
 
+let%client rec creet ctx ((r, g, b), (x, y), radius) =
+  ctx##clearRect 0. 0. (float_of_int width) (float_of_int height);
+  init_map ctx;
+  draw_creet ctx ((r,g,b), (x, y), radius);
+  Js_of_ocaml_lwt__.Lwt_js.sleep 0.03 >>= fun () -> creet ctx ((r,g,b), (x+1, y+1), radius)
+
 let%client rec update_frontend ctx =
-  draw ctx ((0, 154, 23), 8, (300, 200), (400, 300));
-  Js_of_ocaml_lwt__.Lwt_js.sleep 10. >>= fun () -> update_frontend ctx; Lwt.return_unit (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
+  ignore (creet ctx ((138,43,226), (width/2, height/2), height/30));
+  Js_of_ocaml_lwt__.Lwt_js.sleep 10. >>= fun () -> update_frontend ctx
+  (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
 
 let canvas_display =
   canvas ~a:[a_width width; a_height height]
