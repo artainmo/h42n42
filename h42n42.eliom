@@ -59,6 +59,11 @@ let%client init_map ctx =
 let%client creet_color ((r, g, b), y, radius) =
   if y - radius < height/10 then (217,230,80) else (r, g, b)
 
+let%client creet_infected infection y radius =
+  if infection = -1 && y - radius < height/10 then 0
+  else if infection != -1 then infection + 1
+  else -1
+
 let%client rec wall_rebound direction x y radius steps =
   if steps = 0 then wall_rebound (Random.self_init (); Random.int 4) x y radius 1
   else if direction = 0 && x-radius = 0 then wall_rebound (Random.self_init (); Random.int 4) x y radius steps
@@ -75,18 +80,20 @@ let%client creet_move direction x y radius =
   | 3 -> if y - radius = 0 then (x, y + 1) else (x, y - 1)
   | _ -> failwith "Invalid value in creet_move_y"
 
-let%client rec creet ctx ((r, g, b), (x, y), radius) steps direction =
+let%client rec creet ctx ((r, g, b), (x, y), radius) steps direction infection =
   ctx##clearRect 0. 0. (float_of_int width) (float_of_int height);
   init_map ctx;
+  if infection >= int_of_float (1.0 /. 0.01 *. 4.5) then exit 0; (* Keep infected creet alive for 7 seconds when refresh speed is 0.01 *)
   draw_creet ctx ((r,g,b), (x, y), radius);
   Js_of_ocaml_lwt__.Lwt_js.sleep 0.01 >>= fun () -> creet ctx
         ((creet_color ((r,g,b), y, radius)),
         (creet_move direction x y radius), radius)
         (if steps = 0 then 200 else steps - 1)
         (wall_rebound direction x y radius steps)
+        (creet_infected infection y radius)
 
 let%client rec update_frontend ctx =
-  ignore (creet ctx ((138,43,226), (width/2, height/2), height/30) 200 (Random.self_init (); Random.int 4))
+  ignore (creet ctx ((138,43,226), (width/2, height/2), height/30) 200 (Random.self_init (); Random.int 4) (-1))
   (* Js_of_ocaml_lwt__.Lwt_js.sleep 10. >>= fun () -> update_frontend ctx *)
   (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
 
