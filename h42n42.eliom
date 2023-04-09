@@ -34,7 +34,6 @@ let%client draw_creet ctx ((r, g, b), (x, y), radius) =
   draw ctx ((r, g, b), 3, (x - radius, y + radius), (x - radius, y - radius));
   draw ctx ((r, g, b), 3, (x + radius, y + radius), (x + radius, y - radius))
 
-
 (* Draw the static map (river, land, hospital) *)
 let%client init_map ctx =
   draw ctx ((0, 154, 23), 8, (0, 0), (0, height));
