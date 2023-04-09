@@ -18,13 +18,6 @@ let%shared height = 800
 let%shared refresh_rate = 0.01
 let%shared direction_length = 400
 
-type creet_type = {
-	mutable color : int * int * int;
-	mutable position_x : int;
-  mutable position_y : int;
-	mutable radius : int;
-}
-
 (* Draws a line between two given points in a canvas *)
 let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
   let color = CSS.Color.string_of_t (CSS.Color.rgb r g b) in
