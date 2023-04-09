@@ -54,6 +54,19 @@ let%client init_map ctx =
   draw ctx ((232, 0, 0), 8, (width, height - height/10), (width, height));
   draw ctx ((232, 0, 0), 8, (0, height), (width, height))
 
+(* let%client creet_radius ((r, g, b), radius) = *)
+
+let%client creet_color ((r, g, b), y, radius) =
+  if y - radius < height/10 then (217,230,80) else (r, g, b)
+
+let%client rec wall_rebound direction x y radius steps =
+  if steps = 0 then wall_rebound (Random.self_init (); Random.int 4) x y radius 1
+  else if direction = 0 && x-radius = 0 then wall_rebound (Random.self_init (); Random.int 4) x y radius steps
+  else if direction = 1 && x+radius = width then wall_rebound (Random.self_init (); Random.int 4) x y radius steps
+  else if direction = 2 && y+radius = height then wall_rebound (Random.self_init (); Random.int 4) x y radius steps
+  else if direction = 3 && y-radius = 0 then wall_rebound (Random.self_init (); Random.int 4) x y radius steps
+  else direction
+
 let%client creet_move direction x y radius =
   match direction with
   | 0 -> if x - radius = 0 then (x + 1, y) else (x - 1, y)
@@ -67,12 +80,13 @@ let%client rec creet ctx ((r, g, b), (x, y), radius) steps direction =
   init_map ctx;
   draw_creet ctx ((r,g,b), (x, y), radius);
   Js_of_ocaml_lwt__.Lwt_js.sleep 0.01 >>= fun () -> creet ctx
-        ((r,g,b), (creet_move direction x y radius), radius)
-        (if steps = 0 then 100 else steps - 1)
-        (if steps = 0 then (Random.self_init (); Random.int 4) else direction)
+        ((creet_color ((r,g,b), y, radius)),
+        (creet_move direction x y radius), radius)
+        (if steps = 0 then 200 else steps - 1)
+        (wall_rebound direction x y radius steps)
 
 let%client rec update_frontend ctx =
-  ignore (creet ctx ((138,43,226), (width/2, height/2), height/30) 100 (Random.self_init (); Random.int 4))
+  ignore (creet ctx ((138,43,226), (width/2, height/2), height/30) 200 (Random.self_init (); Random.int 4))
   (* Js_of_ocaml_lwt__.Lwt_js.sleep 10. >>= fun () -> update_frontend ctx *)
   (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
 
