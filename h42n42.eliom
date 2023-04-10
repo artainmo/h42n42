@@ -16,7 +16,7 @@ module H42n42_app =
 
 let%shared width = 1050
 let%shared height = 800
-let%shared refresh_rate = 0.01
+let%shared refresh_rate = ref 0.01
 let%shared direction_length = 300
 
 let%shared cut_array a i =
@@ -166,7 +166,7 @@ let%client creet ctx (((r, g, b), (x, y), radius), steps, direction, infection) 
         (creet_infected infection y new_radius creets_array i))
 
 let%client is_dead (((r, g, b), (x, y), radius), steps, direction, infection) creets_array i =
-  if (fst infection) >= int_of_float (1.0 /. refresh_rate *. 4.5) then (* Keep infected creet alive for 7 seconds *)
+  if (fst infection) >= int_of_float (1.0 /. !refresh_rate *. 4.5) then (* Keep infected creet alive for 7 seconds *)
     (cut_array creets_array i, i)
   else
     (creets_array, i + 1)
@@ -181,12 +181,12 @@ let%client rec at_least_one_healthy (((r, g, b), (x, y), radius), steps, directi
   else if i + 1 < (Array.length creets_array) then at_least_one_healthy creets_array.(i + 1) creets_array (i + 1)
   else false
 
-
 let%client spawn_creet creets_array i =
   if ((at_least_one_healthy creets_array.(0) creets_array 0) &&
-        (i >= int_of_float (1.0 /. refresh_rate *. 7.))) then (* Spawn new creet every 10 seconds *)
+        (i >= int_of_float (1.0 /. !refresh_rate *. 7.))) then begin (* Spawn new creet every 10 seconds *)
+    refresh_rate := (if !refresh_rate > 0.001 then !refresh_rate -. 0.001 else !refresh_rate);
     (Array.append [| standard_creet_tuple |] creets_array, 0)
-  else
+  end else
     (creets_array, i + 1)
 
 let%client rec update_frontend ctx creets_array i =
@@ -194,7 +194,7 @@ let%client rec update_frontend ctx creets_array i =
   init_map ctx;
   let new_creet_array, new_i = spawn_creet creets_array i in
   let new_creets_array = loop_creets ctx new_creet_array 0 in
-  Js_of_ocaml_lwt__.Lwt_js.sleep refresh_rate >>= fun () -> update_frontend ctx new_creets_array new_i (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
+  Js_of_ocaml_lwt__.Lwt_js.sleep !refresh_rate >>= fun () -> update_frontend ctx new_creets_array new_i (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
 
 let canvas_display =
   canvas ~a:[a_width width; a_height height]
