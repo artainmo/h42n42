@@ -41,6 +41,11 @@ let%client draw_creet ctx ((r, g, b), (x, y), radius) =
   draw ctx ((r, g, b), 3, (x - radius, y + radius), (x - radius, y - radius));
   draw ctx ((r, g, b), 3, (x + radius, y + radius), (x + radius, y - radius))
 
+let%client game_over ctx =
+  ctx##.font := Js.string "100px Arial";
+  ctx##fillText (Js.string "GAME OVER") ((float_of_int width)/.4.8) (float_of_int (height/2));
+  exit 0
+
 (* Draw the static map (river, land, hospital) *)
 let%client init_map ctx =
   draw ctx ((0, 154, 23), 8, (0, 0), (0, height));
@@ -192,9 +197,11 @@ let%client spawn_creet creets_array i =
 let%client rec update_frontend ctx creets_array i =
   ctx##clearRect 0. 0. (float_of_int width) (float_of_int height);
   init_map ctx;
+  if Array.length creets_array = 0 then game_over ctx;
   let new_creet_array, new_i = spawn_creet creets_array i in
   let new_creets_array = loop_creets ctx new_creet_array 0 in
-  Js_of_ocaml_lwt__.Lwt_js.sleep !refresh_rate >>= fun () -> update_frontend ctx new_creets_array new_i (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
+  Js_of_ocaml_lwt__.Lwt_js.sleep !refresh_rate >>= fun () -> (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
+        update_frontend ctx new_creets_array new_i
 
 let canvas_display =
   canvas ~a:[a_width width; a_height height]
