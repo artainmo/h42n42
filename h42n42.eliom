@@ -80,7 +80,7 @@ let%client rec verify_collision_with_infected creets_array me i =
 let%client creet_radius infection radius =
   match (snd infection) with
   | x when x < 5 -> radius
-  | 5 -> radius + (if (fst infection) mod 10 = 0 then 1 else 0)
+  | 5 -> radius + (if (fst infection) mod 5 = 0 then 1 else 0)
   | _ -> failwith "Invalid value in creet_radius"
 
 let%client creet_color (r, g, b) infection =
