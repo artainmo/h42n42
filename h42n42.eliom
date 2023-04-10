@@ -3,6 +3,7 @@ open Eliom_lib
 open Eliom_content
 open Html.D
 open Js_of_ocaml
+open Js
 open Lwt
 ]
 
@@ -16,16 +17,19 @@ module H42n42_app =
 let%shared width = 1050
 let%shared height = 800
 let%shared refresh_rate = 0.01
-let%shared direction_length = 250
+let%shared direction_length = 200
+
+let%shared cut_array a i =
+  Array.append (Array.sub a 0 i) (Array.sub a (i + 1) (Array.length a - (i + 1)))
 
 (* Draws a line between two given points in a canvas *)
 let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
   let color = CSS.Color.string_of_t (CSS.Color.rgb r g b) in
   ctx##.strokeStyle := (Js.string color);
-  ctx##.lineWidth := float size;
+  ctx##.lineWidth := float_of_int size;
   ctx##beginPath;
-  ctx##(moveTo (float x1) (float y1));
-  ctx##(lineTo (float x2) (float y2));
+  ctx##(moveTo (float_of_int x1) (float_of_int y1));
+  ctx##(lineTo (float_of_int x2) (float_of_int y2));
   ctx##stroke
 
 let%client draw_creet ctx ((r, g, b), (x, y), radius) =
@@ -82,24 +86,32 @@ let%client creet_move direction x y radius =
   | 3 -> if y-radius <= 0 then (x, y + 1) else (x, y - 1)
   | _ -> failwith "Invalid value in creet_move"
 
-let%client rec creet ctx ((r, g, b), (x, y), radius) steps direction infection =
-  ctx##clearRect 0. 0. (float_of_int width) (float_of_int height);
-  init_map ctx;
-  if (fst infection) >= int_of_float (1.0 /. refresh_rate *. 4.5) then exit 0; (* Keep infected creet alive for 7 seconds *)
+let%client creet ctx (((r, g, b), (x, y), radius), steps, direction, infection) =
   draw_creet ctx ((r,g,b), (x, y), radius);
   let new_radius = (creet_radius infection radius) in
-  Js_of_ocaml_lwt__.Lwt_js.sleep refresh_rate >>= fun () -> creet ctx
-        ((creet_color ((r,g,b), y, new_radius)),
+  (((creet_color ((r,g,b), y, new_radius)),
         (creet_move direction x y new_radius),
-        new_radius)
-        (if steps = 0 then direction_length else steps - 1)
-        (wall_rebound direction x y new_radius steps)
-        (creet_infected infection y new_radius)
+        new_radius),
+        (if steps = 0 then direction_length else steps - 1),
+        (wall_rebound direction x y new_radius steps),
+        (creet_infected infection y new_radius))
 
-let%client rec update_frontend ctx =
-  ignore (creet ctx ((138,43,226), (width/2, height/2), height/30) direction_length (Random.self_init (); Random.int 4) (-1, 0))
-  (* Js_of_ocaml_lwt__.Lwt_js.sleep 10. >>= fun () -> update_frontend ctx *)
-  (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
+let%client is_dead (((r, g, b), (x, y), radius), steps, direction, infection) creets_array i =
+  if (fst infection) >= int_of_float (1.0 /. refresh_rate *. 4.5) then (* Keep infected creet alive for 7 seconds *)
+    (cut_array creets_array i, i)
+  else
+    (creets_array, i + 1)
+
+let%client rec loop_creets ctx creets_array i =
+  creets_array.(i) <- creet ctx creets_array.(i);
+  let new_array, new_i = is_dead creets_array.(i) creets_array i in
+  if new_i < (Array.length new_array) then loop_creets ctx new_array new_i else new_array
+
+let%client rec update_frontend ctx creets_array =
+  ctx##clearRect 0. 0. (float_of_int width) (float_of_int height);
+  init_map ctx;
+  let new_creets_array = loop_creets ctx creets_array 0 in
+  Js_of_ocaml_lwt__.Lwt_js.sleep refresh_rate >>= fun () -> update_frontend ctx new_creets_array (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
 
 let canvas_display =
   canvas ~a:[a_width width; a_height height]
@@ -110,7 +122,8 @@ let%client init_client () =
   let ctx = canvas##(getContext (Dom_html._2d_)) in
   ctx##.lineCap := Js.string "rectangular";
   init_map ctx;
-  ignore (update_frontend ctx)
+  let creets_array = [| (((138,43,226), (width/2, height/2), height/30), direction_length, (Random.self_init (); Random.int 4), (-1, 0)) |] in
+  ignore(update_frontend ctx creets_array)
 
 let page () =
   (html
