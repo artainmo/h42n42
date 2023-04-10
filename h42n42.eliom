@@ -80,8 +80,8 @@ let%client rec follow_closest_creet creets_array me i closest_d (closest_x, clos
 
 let%client creet_direction infection direction creets_array me =
   match (snd infection) with
-  | x when x < 4 || x = 5 -> direction
-  | 4 -> follow_closest_creet creets_array me 0 max_int (width/2, height/2)
+  | x when x < 5 || x = 7 -> direction
+  | 5 | 6 -> follow_closest_creet creets_array me 0 max_int (width/2, height/2)
   | _ -> failwith "Invalid value in creet_direction"
 
 let%client collision (x1, y1) r1 (x2, y2) r2 =
@@ -108,20 +108,21 @@ let%client rec verify_collision_with_infected creets_array me i =
 
 let%client creet_radius infection radius =
   match (snd infection) with
-  | x when x < 5 -> radius
-  | 5 -> radius + (if (fst infection) mod 5 = 0 then 1 else 0)
+  | x when x < 6 -> radius
+  | 6 | 7 -> radius + (if (fst infection) mod 5 = 0 then 1 else 0)
   | _ -> failwith "Invalid value in creet_radius"
 
 let%client creet_color (r, g, b) infection =
-  if (fst infection) != -1 && (snd infection) = 5 then (140,47,57)
-  else if (fst infection) != -1 && (snd infection) = 4 then (255,133,82)
+  if (fst infection) != -1 && (snd infection) = 7 then (140,47,57)
+  else if (fst infection) != -1 && (snd infection) = 5 then (255,133,82)
+  else if (fst infection) != -1 && (snd infection) = 6 then (7,16,19)
   else if (fst infection) != -1 then (217,230,80)
   else (r, g, b)
 
 let%client creet_infected infection y radius creets_array i =
   if (fst infection) = -1 && ((y - radius < height/10) ||
         verify_collision_with_infected creets_array i 0)
-    then (0, (Random.self_init (); Random.int 6))
+    then (0, (Random.self_init (); Random.int 8))
   else if (fst infection) != -1 then ((fst infection) + 1, (snd infection))
   else (-1, (snd infection))
 
