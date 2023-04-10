@@ -55,6 +55,35 @@ let%client init_map ctx =
   draw ctx ((232, 0, 0), 8, (width, height - height/10), (width, height));
   draw ctx ((232, 0, 0), 8, (0, height), (width, height))
 
+let%client direction_closest_creet (x1, y1) (x2, y2) =
+  let dx = (x1 - x2) * (x1 - x2) in (* We multiply to always get a positive distance *)
+  let dy = (y1 - y2) * (y1 - y2) in
+  if (dy >= dx && y2 >= y1) then 2
+  else if (dy >= dx && y2 < y1) then 4
+  else if (dy < dx && x2 >= x1) then 1
+  else if (dy < dx && x2 < x1) then 0
+  else (Random.self_init (); Random.int 5)
+
+let%client rec follow_closest_creet creets_array me i closest_d (closest_x, closest_y) =
+  let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = creets_array.(me) in
+  let (((r2, g2, b2), (x2, y2), radius2), steps2, direction2, infection2) = creets_array.(i) in
+  let dx = x2 - x1 in
+  let dy = y2 - y1 in
+  let latest_d = int_of_float (sqrt(float_of_int ((dx * dx) + (dy * dy)))) in
+  if i + 1 < (Array.length creets_array) then
+    follow_closest_creet creets_array me (i + 1)
+      (if (fst infection2) = -1 && me != i && latest_d < closest_d then latest_d else closest_d)
+      (if (fst infection2) = -1 && me != i && latest_d < closest_d then (x2, y2) else (closest_x, closest_y))
+  else
+    direction_closest_creet (x1, y1)
+      (if (fst infection2) = -1 && me != i && latest_d < closest_d then (x2, y2) else (closest_x, closest_y))
+
+let%client creet_direction infection direction creets_array me =
+  match (snd infection) with
+  | x when x < 4 || x = 5 -> direction
+  | 4 -> follow_closest_creet creets_array me 0 max_int (width/2, height/2)
+  | _ -> failwith "Invalid value in creet_direction"
+
 let%client collision (x1, y1) r1 (x2, y2) r2 =
   let dx = x2 - x1 in
   let dy = y2 - y1 in
@@ -127,11 +156,12 @@ let%client creet_move direction x y radius infection =
 let%client creet ctx (((r, g, b), (x, y), radius), steps, direction, infection) creets_array i =
   draw_creet ctx ((r,g,b), (x, y), radius);
   let new_radius = (creet_radius infection radius) in
+  let new_direction = (creet_direction infection direction creets_array i) in
   (((creet_color (r,g,b) infection),
-        (creet_move direction x y new_radius infection),
+        (creet_move new_direction x y new_radius infection),
         new_radius),
         (if steps = 0 then direction_length else steps - 1),
-        (wall_rebound direction x y new_radius steps infection),
+        (wall_rebound new_direction x y new_radius steps infection),
         (creet_infected infection y new_radius creets_array i))
 
 let%client is_dead (((r, g, b), (x, y), radius), steps, direction, infection) creets_array i =
