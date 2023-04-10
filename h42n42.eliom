@@ -22,6 +22,9 @@ let%shared direction_length = 200
 let%shared cut_array a i =
   Array.append (Array.sub a 0 i) (Array.sub a (i + 1) (Array.length a - (i + 1)))
 
+let%client standard_creet_tuple =
+  (((138,43,226), (width/2, height/2), height/30), direction_length, (Random.self_init (); Random.int 4), (-1, 0))
+
 (* Draws a line between two given points in a canvas *)
 let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
   let color = CSS.Color.string_of_t (CSS.Color.rgb r g b) in
@@ -107,11 +110,18 @@ let%client rec loop_creets ctx creets_array i =
   let new_array, new_i = is_dead creets_array.(i) creets_array i in
   if new_i < (Array.length new_array) then loop_creets ctx new_array new_i else new_array
 
-let%client rec update_frontend ctx creets_array =
+let%client spawn_creet creets_array i =
+  if i >= int_of_float (1.0 /. refresh_rate *. 7.) then (* Keep infected creet alive for 10 seconds *)
+    (Array.append [| standard_creet_tuple |] creets_array, 0)
+  else
+    (creets_array, i + 1)
+
+let%client rec update_frontend ctx creets_array i =
   ctx##clearRect 0. 0. (float_of_int width) (float_of_int height);
   init_map ctx;
-  let new_creets_array = loop_creets ctx creets_array 0 in
-  Js_of_ocaml_lwt__.Lwt_js.sleep refresh_rate >>= fun () -> update_frontend ctx new_creets_array (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
+  let new_creet_array, new_i = spawn_creet creets_array i in
+  let new_creets_array = loop_creets ctx new_creet_array 0 in
+  Js_of_ocaml_lwt__.Lwt_js.sleep refresh_rate >>= fun () -> update_frontend ctx new_creets_array new_i (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
 
 let canvas_display =
   canvas ~a:[a_width width; a_height height]
@@ -122,8 +132,8 @@ let%client init_client () =
   let ctx = canvas##(getContext (Dom_html._2d_)) in
   ctx##.lineCap := Js.string "rectangular";
   init_map ctx;
-  let creets_array = [| (((138,43,226), (width/2, height/2), height/30), direction_length, (Random.self_init (); Random.int 4), (-1, 0)) |] in
-  ignore(update_frontend ctx creets_array)
+  let creets_array = [| standard_creet_tuple |] in
+  ignore(update_frontend ctx creets_array 0)
 
 let page () =
   (html
