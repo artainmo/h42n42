@@ -23,7 +23,7 @@ let%shared cut_array a i =
   Array.append (Array.sub a 0 i) (Array.sub a (i + 1) (Array.length a - (i + 1)))
 
 let%client standard_creet_tuple =
-  (((138,43,226), (width/2, height/2), height/30), direction_length, (Random.self_init (); Random.int 5), (-1, 0))
+  (((157,105,163), (width/2, height/2), height/30), direction_length, (Random.self_init (); Random.int 5), (-1, 0))
 
 (* Draws a line between two given points in a canvas *)
 let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
@@ -84,12 +84,15 @@ let%client creet_radius infection radius =
   | _ -> failwith "Invalid value in creet_radius"
 
 let%client creet_color (r, g, b) infection =
-  if (fst infection) != -1 then (217,230,80) else (r, g, b)
+  if (fst infection) != -1 && (snd infection) = 5 then (140,47,57)
+  else if (fst infection) != -1 && (snd infection) = 4 then (255,133,82)
+  else if (fst infection) != -1 then (217,230,80)
+  else (r, g, b)
 
 let%client creet_infected infection y radius creets_array i =
   if (fst infection) = -1 && ((y - radius < height/10) ||
         verify_collision_with_infected creets_array i 0)
-    then (0, (Random.self_init (); Random.int 5))
+    then (0, (Random.self_init (); Random.int 6))
   else if (fst infection) != -1 then ((fst infection) + 1, (snd infection))
   else (-1, (snd infection))
 
