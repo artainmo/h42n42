@@ -83,10 +83,8 @@ let%client creet_radius infection radius =
   | 5 -> radius + (if (fst infection) mod 10 = 0 then 1 else 0)
   | _ -> failwith "Invalid value in creet_radius"
 
-let%client creet_color ((r, g, b), y, radius) creets_array i =
-  if ((y - radius < height/10) ||
-        verify_collision_with_infected creets_array i 0)
-    then (217,230,80) else (r, g, b)
+let%client creet_color (r, g, b) infection =
+  if (fst infection) != -1 then (217,230,80) else (r, g, b)
 
 let%client creet_infected infection y radius creets_array i =
   if (fst infection) = -1 && ((y - radius < height/10) ||
@@ -126,7 +124,7 @@ let%client creet_move direction x y radius infection =
 let%client creet ctx (((r, g, b), (x, y), radius), steps, direction, infection) creets_array i =
   draw_creet ctx ((r,g,b), (x, y), radius);
   let new_radius = (creet_radius infection radius) in
-  (((creet_color ((r,g,b), y, new_radius) creets_array i),
+  (((creet_color (r,g,b) infection),
         (creet_move direction x y new_radius infection),
         new_radius),
         (if steps = 0 then direction_length else steps - 1),
