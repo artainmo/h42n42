@@ -27,6 +27,7 @@ let%shared cut_array a i =
 
 let%client standard_creet_tuple =
   (((157,105,163), (width/2, height/2), height/30), direction_length, (Random.self_init (); Random.int 5), (-1, 0))
+let%client creets_array = ref [| standard_creet_tuple |]
 
 (* Draws a line between two given points in a canvas *)
 let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
@@ -95,24 +96,24 @@ let%client direction_closest_creet (x1, y1) (x2, y2) =
   else if (dy < dx && x2 < x1) then 0
   else (Random.self_init (); Random.int 5)
 
-let%client rec follow_closest_creet creets_array me i closest_d (closest_x, closest_y) =
-  let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = creets_array.(me) in
-  let (((r2, g2, b2), (x2, y2), radius2), steps2, direction2, infection2) = creets_array.(i) in
+let%client rec follow_closest_creet me i closest_d (closest_x, closest_y) =
+  let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = !creets_array.(me) in
+  let (((r2, g2, b2), (x2, y2), radius2), steps2, direction2, infection2) = !creets_array.(i) in
   let dx = x2 - x1 in
   let dy = y2 - y1 in
   let latest_d = int_of_float (sqrt(float_of_int ((dx * dx) + (dy * dy)))) in
-  if i + 1 < (Array.length creets_array) then
-    follow_closest_creet creets_array me (i + 1)
+  if i + 1 < (Array.length !creets_array) then
+    follow_closest_creet me (i + 1)
       (if (fst infection2) = -1 && me != i && latest_d < closest_d then latest_d else closest_d)
       (if (fst infection2) = -1 && me != i && latest_d < closest_d then (x2, y2) else (closest_x, closest_y))
   else
     direction_closest_creet (x1, y1)
       (if (fst infection2) = -1 && me != i && latest_d < closest_d then (x2, y2) else (closest_x, closest_y))
 
-let%client creet_direction infection direction creets_array me =
+let%client creet_direction infection direction me =
   match (snd infection) with
   | x when x < 5 || x = 7 -> direction
-  | 5 | 6 -> follow_closest_creet creets_array me 0 max_int (width/2, height/2)
+  | 5 | 6 -> follow_closest_creet me 0 max_int (width/2, height/2)
   | _ -> failwith "Invalid value in creet_direction"
 
 let%client collision (x1, y1) r1 (x2, y2) r2 =
@@ -122,9 +123,9 @@ let%client collision (x1, y1) r1 (x2, y2) r2 =
   let r = r1 + r2 in
   d < (float_of_int r)
 
-let%client rec verify_collision_with_infected creets_array me i =
-  let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = creets_array.(me) in
-  let (((r2, g2, b2), (x2, y2), radius2), steps2, direction2, infection2) = creets_array.(i) in
+let%client rec verify_collision_with_infected me i =
+  let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = !creets_array.(me) in
+  let (((r2, g2, b2), (x2, y2), radius2), steps2, direction2, infection2) = !creets_array.(i) in
   if i != me && (fst infection1) = -1 && (fst infection2) != -1
     && collision (x1, y1) radius1 (x2, y2) radius2 then begin
     Random.self_init ();
@@ -133,8 +134,8 @@ let%client rec verify_collision_with_infected creets_array me i =
     | 0 -> false
     | 1 -> true
     | _ -> failwith "Invalid value in verify_collision_with_infected"
-  end else if i + 1 < (Array.length creets_array)
-    then verify_collision_with_infected creets_array me (i + 1)
+  end else if i + 1 < (Array.length !creets_array)
+    then verify_collision_with_infected me (i + 1)
   else false
 
 let%client creet_radius infection radius =
@@ -150,9 +151,9 @@ let%client creet_color (r, g, b) infection =
   else if (fst infection) != -1 then (217,230,80)
   else (r, g, b)
 
-let%client creet_infected infection y radius creets_array i =
+let%client creet_infected infection y radius i =
   if (fst infection) = -1 && ((y - radius < height/10) ||
-        verify_collision_with_infected creets_array i 0)
+        verify_collision_with_infected i 0)
     then (0, (Random.self_init (); Random.int 8))
   else if (fst infection) != -1 then ((fst infection) + 1, (snd infection))
   else (-1, (snd infection))
@@ -185,49 +186,51 @@ let%client creet_move direction x y radius infection =
     | 4 -> if y-radius <= 0 then (x, y + 1) else (x, y - 1)
     | _ -> failwith "Invalid value in creet_move"
 
-let%client creet ctx (((r, g, b), (x, y), radius), steps, direction, infection) creets_array i =
+let%client creet ctx (((r, g, b), (x, y), radius), steps, direction, infection) i =
   draw_creet ctx ((r,g,b), (x, y), radius);
   let new_radius = (creet_radius infection radius) in
-  let new_direction = (creet_direction infection direction creets_array i) in
+  let new_direction = (creet_direction infection direction i) in
   (((creet_color (r,g,b) infection),
         (creet_move new_direction x y new_radius infection),
         new_radius),
         (if steps = 0 then direction_length else steps - 1),
         (wall_rebound new_direction x y new_radius steps infection),
-        (creet_infected infection y new_radius creets_array i))
+        (creet_infected infection y new_radius i))
 
-let%client is_dead (((r, g, b), (x, y), radius), steps, direction, infection) creets_array i =
-  if (fst infection) >= int_of_float (1.0 /. !refresh_rate *. 4.5) then (* Keep infected creet alive for 7 seconds *)
-    (cut_array creets_array i, i)
-  else
-    (creets_array, i + 1)
+let%client is_dead (((r, g, b), (x, y), radius), steps, direction, infection) i =
+  if (fst infection) >= int_of_float (1.0 /. !refresh_rate *. 4.5) then begin (* Keep infected creet alive for 7 seconds *)
+    creets_array := cut_array !creets_array i;
+    i
+  end else
+    i + 1
 
-let%client rec loop_creets ctx creets_array i =
-  creets_array.(i) <- creet ctx creets_array.(i) creets_array i;
-  let new_array, new_i = is_dead creets_array.(i) creets_array i in
-  if new_i < (Array.length new_array) then loop_creets ctx new_array new_i else new_array
+let%client rec loop_creets ctx i =
+  !creets_array.(i) <- creet ctx !creets_array.(i) i;
+  let new_i = is_dead !creets_array.(i) i in
+  if new_i < (Array.length !creets_array) then loop_creets ctx new_i else !creets_array
 
-let%client rec at_least_one_healthy (((r, g, b), (x, y), radius), steps, direction, infection) creets_array i =
+let%client rec at_least_one_healthy (((r, g, b), (x, y), radius), steps, direction, infection) i =
   if (fst infection) = -1 then true
-  else if i + 1 < (Array.length creets_array) then at_least_one_healthy creets_array.(i + 1) creets_array (i + 1)
+  else if i + 1 < (Array.length !creets_array) then at_least_one_healthy !creets_array.(i + 1) (i + 1)
   else false
 
-let%client spawn_creet creets_array i =
-  if ((at_least_one_healthy creets_array.(0) creets_array 0) &&
+let%client spawn_creet i =
+  if ((at_least_one_healthy !creets_array.(0) 0) &&
         (i >= int_of_float (1.0 /. !refresh_rate *. 7.))) then begin (* Spawn new creet every 10 seconds *)
     refresh_rate := (if !refresh_rate > 0.001 then !refresh_rate -. 0.001 else !refresh_rate);
-    (Array.append [| standard_creet_tuple |] creets_array, 0)
+    creets_array := Array.append [| standard_creet_tuple |] !creets_array;
+    0
   end else
-    (creets_array, i + 1)
+    i + 1
 
-let%client rec update_frontend ctx creets_array i =
+let%client rec update_frontend ctx i =
   ctx##clearRect 0. 0. (float_of_int width) (float_of_int height);
   init_map ctx;
-  if Array.length creets_array = 0 then game_over ctx;
-  let new_creet_array, new_i = spawn_creet creets_array i in
-  let new_creets_array = loop_creets ctx new_creet_array 0 in
+  if Array.length !creets_array = 0 then game_over ctx;
+  let new_i = spawn_creet i in
+  let () = (creets_array := loop_creets ctx 0) in
   Js_of_ocaml_lwt__.Lwt_js.sleep !refresh_rate >>= fun () -> (* >>= symbol is necessary to wait for the promise to resolve, it is like 'await' in javascript *)
-        update_frontend ctx new_creets_array new_i
+        update_frontend ctx new_i
 
 let canvas_display =
   canvas ~a:[a_width width; a_height height]
@@ -239,8 +242,7 @@ let%client init_client () =
   ctx##.lineCap := Js.string "rectangular";
   init_map ctx;
   ignore(mouse_drag canvas);
-  let creets_array = [| standard_creet_tuple |] in
-  ignore(update_frontend ctx creets_array 0)
+  ignore(update_frontend ctx 0)
 
 let page () =
   (html
