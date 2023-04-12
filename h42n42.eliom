@@ -6,6 +6,9 @@ open Js_of_ocaml
 open Js
 open Lwt
 ]
+[%%client
+open Js_of_ocaml_lwt
+]
 
 module H42n42_app =
   Eliom_registration.App (
@@ -45,6 +48,29 @@ let%client game_over ctx =
   ctx##.font := Js.string "100px Arial";
   ctx##fillText (Js.string "GAME OVER") ((float_of_int width)/.4.8) (float_of_int (height/2));
   exit 0
+
+let%client get_mouse_pos canvas event =
+  let rect = canvas##getBoundingClientRect in
+  let x = int_of_float (float_of_int event##.clientX -. rect##.left) in
+  let y = int_of_float (float_of_int event##.clientY -. rect##.top) in
+  (x, y)
+
+let%client mouse_drag canvas =
+  Lwt_js_events.mousedowns canvas
+    (fun event_down _ ->
+      let pos1 = get_mouse_pos canvas event_down in
+      Firebug.console##log pos1;
+      Lwt.return ()
+      >>= fun () ->
+        Lwt.pick
+          [Lwt_js_events.mousemoves Dom_html.document (fun event_move _ ->
+            let pos = get_mouse_pos canvas event_move in
+            Firebug.console##log pos;
+            Lwt.return ());
+  	      Lwt_js_events.mouseup Dom_html.document >>= (fun event_up ->
+            let pos = get_mouse_pos canvas event_up in
+            Firebug.console##log pos;
+            Lwt.return ());])
 
 (* Draw the static map (river, land, hospital) *)
 let%client init_map ctx =
@@ -212,6 +238,7 @@ let%client init_client () =
   let ctx = canvas##(getContext (Dom_html._2d_)) in
   ctx##.lineCap := Js.string "rectangular";
   init_map ctx;
+  ignore(mouse_drag canvas);
   let creets_array = [| standard_creet_tuple |] in
   ignore(update_frontend ctx creets_array 0)
 
