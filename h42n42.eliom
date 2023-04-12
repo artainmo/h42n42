@@ -50,6 +50,27 @@ let%client game_over ctx =
   ctx##fillText (Js.string "GAME OVER") ((float_of_int width)/.4.8) (float_of_int (height/2));
   exit 0
 
+let%client drag_creet new_pos i =
+  if i !=  -1 then
+    let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = !creets_array.(i) in
+    let mouse_x, mouse_y = new_pos in
+    !creets_array.(i) <- (((r1, g1, b1), (mouse_x, mouse_y), radius1), steps1, direction1, infection1)
+
+let%client collision (x1, y1) r1 (x2, y2) r2 =
+  let dx = x2 - x1 in
+  let dy = y2 - y1 in
+  let d = sqrt(float_of_int ((dx * dx) + (dy * dy))) in
+  let r = r1 + r2 in
+  d < (float_of_int r)
+
+let%client rec verify_if_a_creet_got_picked mouse_pos i =
+  let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = !creets_array.(i) in
+  let mouse_x, mouse_y = mouse_pos in
+  if collision  (x1, y1) radius1 (mouse_x, mouse_y) 0 then i
+  else if i + 1 < (Array.length !creets_array)
+    then verify_if_a_creet_got_picked mouse_pos (i + 1)
+  else -1
+
 let%client get_mouse_pos canvas event =
   let rect = canvas##getBoundingClientRect in
   let x = int_of_float (float_of_int event##.clientX -. rect##.left) in
@@ -60,17 +81,15 @@ let%client mouse_drag canvas =
   Lwt_js_events.mousedowns canvas
     (fun event_down _ ->
       let pos1 = get_mouse_pos canvas event_down in
-      Firebug.console##log pos1;
+      let creet = verify_if_a_creet_got_picked pos1 0 in
       Lwt.return ()
       >>= fun () ->
         Lwt.pick
           [Lwt_js_events.mousemoves Dom_html.document (fun event_move _ ->
             let pos = get_mouse_pos canvas event_move in
-            Firebug.console##log pos;
+            drag_creet pos creet;
             Lwt.return ());
   	      Lwt_js_events.mouseup Dom_html.document >>= (fun event_up ->
-            let pos = get_mouse_pos canvas event_up in
-            Firebug.console##log pos;
             Lwt.return ());])
 
 (* Draw the static map (river, land, hospital) *)
@@ -115,13 +134,6 @@ let%client creet_direction infection direction me =
   | x when x < 5 || x = 7 -> direction
   | 5 | 6 -> follow_closest_creet me 0 max_int (width/2, height/2)
   | _ -> failwith "Invalid value in creet_direction"
-
-let%client collision (x1, y1) r1 (x2, y2) r2 =
-  let dx = x2 - x1 in
-  let dy = y2 - y1 in
-  let d = sqrt(float_of_int ((dx * dx) + (dy * dy))) in
-  let r = r1 + r2 in
-  d < (float_of_int r)
 
 let%client rec verify_collision_with_infected me i =
   let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = !creets_array.(me) in
