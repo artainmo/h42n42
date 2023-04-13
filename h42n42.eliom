@@ -29,6 +29,8 @@ let%client standard_creet_tuple =
   (((157,105,163), (width/2, height/2), height/30), direction_length, (Random.self_init (); Random.int 5), (-1, 0))
 let%client creets_array = ref [| standard_creet_tuple |]
 
+let%client picked = ref (-1)
+
 (* Draws a line between two given points in a canvas *)
 let%client draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) =
   let color = CSS.Color.string_of_t (CSS.Color.rgb r g b) in
@@ -77,19 +79,23 @@ let%client get_mouse_pos canvas event =
   let y = int_of_float (float_of_int event##.clientY -. rect##.top) in
   (x, y)
 
+let%client drag canvas event =
+  let pos = get_mouse_pos canvas event in
+  let creet = verify_if_a_creet_got_picked pos 0 in
+  let () = drag_creet pos creet in
+  picked := creet;
+  Lwt.return ()
+
 let%client mouse_drag canvas =
   Lwt_js_events.mousedowns canvas
     (fun event_down _ ->
-      let pos1 = get_mouse_pos canvas event_down in
-      let creet = verify_if_a_creet_got_picked pos1 0 in
-      Lwt.return ()
+      drag canvas event_down
       >>= fun () ->
         Lwt.pick
           [Lwt_js_events.mousemoves Dom_html.document (fun event_move _ ->
-            let pos = get_mouse_pos canvas event_move in
-            drag_creet pos creet;
-            Lwt.return ());
+            drag canvas event_move);
   	      Lwt_js_events.mouseup Dom_html.document >>= (fun event_up ->
+            picked := -1;
             Lwt.return ());])
 
 (* Draw the static map (river, land, hospital) *)
@@ -139,7 +145,7 @@ let%client rec verify_collision_with_infected me i =
   let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = !creets_array.(me) in
   let (((r2, g2, b2), (x2, y2), radius2), steps2, direction2, infection2) = !creets_array.(i) in
   if i != me && (fst infection1) = -1 && (fst infection2) != -1
-    && collision (x1, y1) radius1 (x2, y2) radius2 then begin
+    && i != !picked && collision (x1, y1) radius1 (x2, y2) radius2 then begin
     Random.self_init ();
     let rand = Random.int 2 in (* If collision with infected occurred there is 1/2 chance of infection *)
     match rand with
@@ -152,7 +158,7 @@ let%client rec verify_collision_with_infected me i =
 
 let%client creet_radius infection radius =
   match (snd infection) with
-  | x when x < 6 -> radius
+  | x when x < 6 -> height/30
   | 6 | 7 -> radius + (if (fst infection) mod 5 = 0 then 1 else 0)
   | _ -> failwith "Invalid value in creet_radius"
 
@@ -161,7 +167,7 @@ let%client creet_color (r, g, b) infection =
   else if (fst infection) != -1 && (snd infection) = 5 then (255,133,82)
   else if (fst infection) != -1 && (snd infection) = 6 then (7,16,19)
   else if (fst infection) != -1 then (217,230,80)
-  else (r, g, b)
+  else (157,105,163)
 
 let%client creet_infected infection y radius i =
   if (fst infection) = -1 && ((y - radius < height/10) ||
@@ -169,6 +175,12 @@ let%client creet_infected infection y radius i =
     then (0, (Random.self_init (); Random.int 8))
   else if (fst infection) != -1 then ((fst infection) + 1, (snd infection))
   else (-1, (snd infection))
+
+let%client creet_healed infection y radius =
+  if (fst infection) != -1 && (y + radius > height - height/10) then
+    (-1, 0)
+  else
+    infection
 
 let%client rec wall_rebound direction x y radius steps infection =
   if steps = 0 then wall_rebound (Random.self_init (); Random.int 5) x y radius 1 infection
@@ -203,11 +215,12 @@ let%client creet ctx (((r, g, b), (x, y), radius), steps, direction, infection) 
   let new_radius = (creet_radius infection radius) in
   let new_direction = (creet_direction infection direction i) in
   (((creet_color (r,g,b) infection),
-        (creet_move new_direction x y new_radius infection),
+        (if !picked = i then (x, y) else creet_move new_direction x y new_radius infection),
         new_radius),
         (if steps = 0 then direction_length else steps - 1),
         (wall_rebound new_direction x y new_radius steps infection),
-        (creet_infected infection y new_radius i))
+        (if !picked != i then creet_infected infection y new_radius i
+        else creet_healed infection y new_radius))
 
 let%client is_dead (((r, g, b), (x, y), radius), steps, direction, infection) i =
   if (fst infection) >= int_of_float (1.0 /. !refresh_rate *. 4.5) then begin (* Keep infected creet alive for 7 seconds *)
