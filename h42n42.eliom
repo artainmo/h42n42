@@ -52,11 +52,19 @@ let%client game_over ctx =
   ctx##fillText (Js.string "GAME OVER") ((float_of_int width)/.4.8) (float_of_int (height/2));
   exit 0
 
+let%client border center radius min max =
+  if center - radius < min then min + radius
+  else if center + radius > max then max - radius
+  else center
+
 let%client drag_creet new_pos i =
   if i !=  -1 then
     let (((r1, g1, b1), (x1, y1), radius1), steps1, direction1, infection1) = !creets_array.(i) in
     let mouse_x, mouse_y = new_pos in
-    !creets_array.(i) <- (((r1, g1, b1), (mouse_x, mouse_y), radius1), steps1, direction1, infection1)
+    !creets_array.(i) <- (((r1, g1, b1),
+          ((border mouse_x radius1 0 width),
+          (border mouse_y radius1 0 height)),
+          radius1), steps1, direction1, infection1)
 
 let%client collision (x1, y1) r1 (x2, y2) r2 =
   let dx = x2 - x1 in
@@ -159,7 +167,7 @@ let%client rec verify_collision_with_infected me i =
 let%client creet_radius infection radius =
   match (snd infection) with
   | x when x < 6 -> height/30
-  | 6 | 7 -> radius + (if (fst infection) mod 5 = 0 then 1 else 0)
+  | 6 | 7 -> radius + (if (fst infection) mod (int_of_float (0.05 /. !refresh_rate)) = 0 then 1 else 0)
   | _ -> failwith "Invalid value in creet_radius"
 
 let%client creet_color (r, g, b) infection =
@@ -184,14 +192,14 @@ let%client creet_healed infection y radius =
 
 let%client rec wall_rebound direction x y radius steps infection =
   if steps = 0 then wall_rebound (Random.self_init (); Random.int 5) x y radius 1 infection
-  else if x-radius < 0 then 1
-  else if x+radius > width then 0
-  else if y-radius < 0 then 2
-  else if y+radius > height then 3
+  else if x-radius <= 0 then 1
+  else if x+radius >= width then 0
+  else if y-radius < height/10 then 2
+  else if y+radius > height - height/10 then 4
   else if direction = 0 && x-radius <= 0 then wall_rebound (Random.self_init (); Random.int 5) x y radius steps infection
   else if direction = 1 && x+radius >= width then wall_rebound (Random.self_init (); Random.int 5) x y radius steps infection
-  else if ((direction = 2) || ((fst infection) != -1 && direction = 3)) && y+radius >= height then wall_rebound (Random.self_init (); Random.int 5) x y radius steps infection
-  else if ((direction = 4) || ((fst infection) = -1 && direction = 3)) && y-radius <= 0 then wall_rebound (Random.self_init (); Random.int 5) x y radius steps infection
+  else if ((direction = 2) || ((fst infection) != -1 && direction = 3)) && y+radius > (height - (height/10)) then wall_rebound (Random.self_init (); Random.int 5) x y radius steps infection
+  else if ((direction = 4) || ((fst infection) = -1 && direction = 3)) && y-radius < height/10 then wall_rebound (Random.self_init (); Random.int 5) x y radius steps infection
   else direction
 
 let%client creet_move direction x y radius infection =
@@ -199,15 +207,15 @@ let%client creet_move direction x y radius infection =
     match direction with
     | 0 -> if x-radius <= 0 then (x + 1, y) else (x - 1, y)
     | 1 -> if x+radius >= width then (x - 1, y) else (x + 1, y)
-    | 2 -> if y+radius >= height then (x, y - 1) else (x, y + 1)
-    | 3 | 4 -> if y-radius <= 0 then (x, y + 1) else (x, y - 1)
+    | 2 -> if y+radius > (height - (height/10)) then (x, y - 1) else (x, y + 1)
+    | 3 | 4 -> if y-radius < height/10 then (x, y + 1) else (x, y - 1)
     | _ -> failwith "Invalid value in creet_move"
   else
     match direction with
     | 0 -> if x-radius <= 0 then (x + 1, y) else (x - 1, y)
     | 1 -> if x+radius >= width then (x - 1, y) else (x + 1, y)
-    | 2 | 3 -> if y+radius >= height then (x, y - 1) else (x, y + 1)
-    | 4 -> if y-radius <= 0 then (x, y + 1) else (x, y - 1)
+    | 2 | 3 -> if y+radius > (height - (height/10)) then (x, y - 1) else (x, y + 1)
+    | 4 -> if y-radius < height/10 then (x, y + 1) else (x, y - 1)
     | _ -> failwith "Invalid value in creet_move"
 
 let%client creet ctx (((r, g, b), (x, y), radius), steps, direction, infection) i =
